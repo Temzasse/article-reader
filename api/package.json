@@ -1,0 +1,17 @@
+{
+  "name": "article-reader",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "scrape": "node scrape.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@mozilla/readability": "0.6.0",
+    "jsdom": "26.0.0"
+  }
+}
