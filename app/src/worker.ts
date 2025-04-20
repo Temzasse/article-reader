@@ -1,5 +1,5 @@
 import * as Comlink from "comlink";
-import * as tts from "@mintplex-labs/piper-tts-web";
+import * as tts from "./tts";
 
 let __session__: tts.TtsSession | null = null;
 
@@ -8,11 +8,7 @@ export async function downloadModel(
   onProgress?: (e: tts.Progress) => void
 ) {
   const storedModels = await tts.stored();
-
-  if (storedModels.includes(voideId)) {
-    console.log(`Model ${voideId} already downloaded`);
-    return;
-  }
+  if (storedModels.includes(voideId)) return;
 
   return await tts.download(voideId, onProgress);
 }

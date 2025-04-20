@@ -27,4 +27,7 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    allowedHosts: ["namely-enough-caiman.ngrok-free.app"],
+  },
 });
