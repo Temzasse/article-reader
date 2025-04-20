@@ -1,3 +1,6 @@
-export const CPU_COUNT = navigator.hardwareConcurrency || 4;
+export const CPU_COUNT = Math.max(
+  2,
+  Math.floor(navigator.hardwareConcurrency / 2)
+);
 
-export const DEFAULT_VOICE_ID = "en_US-joe-medium";
+export const VOICE_ID = "en_GB-semaine-medium";

@@ -1,5 +1,5 @@
 import type { InferenceSession } from "onnxruntime-web";
-import * as ort from 'onnxruntime-web';
+import * as ort from "onnxruntime-web";
 
 import type { InferenceConfig, ProgressCallback, VoiceId } from "./types";
 import { HF_BASE, ONNX_BASE, PATH_MAP, WASM_BASE } from "./constants.js";
@@ -104,8 +104,8 @@ export class TtsSession {
 
     const input = JSON.stringify([{ text: text.trim() }]);
 
-    const phonemeIds: string[] = await new Promise(async (resolve) => {
-      const module = await this.#createPiperPhonemize!({
+    const phonemeIds: string[] = await new Promise((resolve) => {
+      this.#createPiperPhonemize!({
         print: (data: any) => {
           resolve(JSON.parse(data).phoneme_ids);
         },
@@ -122,16 +122,16 @@ export class TtsSession {
           if (url.endsWith(".data")) return this.#wasmPaths.piperData;
           return url;
         },
+      }).then((module: any) => {
+        module.callMain([
+          "-l",
+          this.#modelConfig.espeak.voice,
+          "--input",
+          input,
+          "--espeak_data",
+          "/espeak-ng-data",
+        ]);
       });
-
-      module.callMain([
-        "-l",
-        this.#modelConfig.espeak.voice,
-        "--input",
-        input,
-        "--espeak_data",
-        "/espeak-ng-data",
-      ]);
     });
 
     const speakerId = 0;

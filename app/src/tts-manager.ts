@@ -2,8 +2,9 @@ import * as Comlink from "comlink";
 
 import type { Progress } from "./tts";
 import { WorkerPool } from "./worker-pool";
-import { CPU_COUNT, DEFAULT_VOICE_ID } from "./constants";
+import { CPU_COUNT, VOICE_ID } from "./constants";
 import { audioPlayer } from "./audio-player";
+import { audioDb } from "./audio-db";
 
 const pool = new WorkerPool(CPU_COUNT);
 
@@ -17,7 +18,7 @@ export async function downloadModel() {
   });
 
   await pool.exec((worker) => {
-    return worker.downloadModel(DEFAULT_VOICE_ID, onProgress);
+    return worker.downloadModel(VOICE_ID, onProgress);
   });
 }
 
@@ -32,43 +33,54 @@ export async function processSentences(sentences: string[]) {
   const results = new Map<number, Blob>();
 
   let nextToEnqueue = 0;
+  let enqueueing = false;
 
   async function enqueueReadyAudio() {
-    while (results.has(nextToEnqueue)) {
-      const blob = results.get(nextToEnqueue);
-      if (blob) {
-        console.log(
-          `Enqueuing audio for sentence ${nextToEnqueue + 1} / ${total}`
-        );
-        await audioPlayer.enqueue(blob);
+    if (enqueueing) return;
+    enqueueing = true;
+
+    try {
+      while (results.has(nextToEnqueue)) {
+        const blob = results.get(nextToEnqueue);
+        if (blob) {
+          console.log(`Enqueuing audio for sentence ${nextToEnqueue + 1} / ${total}`); // prettier-ignore
+          await audioPlayer.enqueue(blob);
+        }
+        results.delete(nextToEnqueue);
+        nextToEnqueue++;
       }
-      results.delete(nextToEnqueue);
-      nextToEnqueue++;
+    } finally {
+      enqueueing = false;
     }
   }
 
-  const tasks = sentences.map((sentence, index) => {
+  const tasks = sentences.map(async (text, index) => {
     const current = index + 1;
-    console.log(`Processing sentence ${current} / ${total}`);
+    const key = await audioDb.key({ text, voiceId: VOICE_ID });
+    let blob = await audioDb.get(key);
 
-    return pool.exec(async (worker) => {
-      const result = await worker.getAudio({
-        text: sentence,
-        voiceId: DEFAULT_VOICE_ID,
+    if (blob) {
+      console.log(`Using cached audio for sentence ${current} / ${total}`);
+    } else {
+      console.log(`Processing sentence ${current} / ${total}`);
+
+      const result = await pool.exec(async (worker) => {
+        return worker.getAudio({ text, voiceId: VOICE_ID });
       });
 
       console.log(`Finished processing sentence ${current} / ${total}`);
 
-      if (result.audio) {
-        results.set(index, result.audio);
-      } else {
-        console.error(
-          `Error processing sentence ${current}: ${result.message}`
-        );
+      if (!result.audio) {
+        console.error(`Error processing sentence ${current}: ${result.message}`); // prettier-ignore
+        return;
       }
 
-      return enqueueReadyAudio();
-    });
+      blob = result.audio;
+      await audioDb.set(key, blob);
+    }
+
+    results.set(index, blob);
+    await enqueueReadyAudio();
   });
 
   await Promise.all(tasks);
